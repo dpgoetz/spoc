@@ -1,0 +1,53 @@
+#!/usr/bin/python
+import sys, os
+from optparse import OptionParser
+import cPickle as pickle
+
+def look_at_asyncs(device_name, node_path='/srv/node/'):
+    async_path = os.path.join(node_path, device_name, 'async_pending')
+    async_dict = {}
+    for async_suffix in os.listdir(async_path):
+        for async_file in os.listdir(os.path.join(async_path, async_suffix)):
+            async_file = os.path.join(async_path, async_suffix, async_file)
+            file_data = pickle.load(open(async_file))
+            acc = file_data['account']
+            cont = file_data['container']
+            if not (acc or cont):
+                print "Error: %s has invalid data" % async_file
+                exit()
+            if not async_dict.has_key(acc):
+                async_dict[acc] = {'num_asyncs': 0,
+                                   'async_times': []}
+            if not async_dict.has_key((acc, cont)):
+                async_dict[(acc, cont)] = {'num_asyncs': 0,
+                                           'async_times': []}
+            async_dict[acc]['num_asyncs'] += 1
+            async_dict[acc]['async_times'].append(
+                file_data['headers']['x-timestamp'])
+
+            async_dict[(acc, cont)]['num_asyncs'] += 1
+            async_dict[(acc, cont)]['async_times'].append(
+                file_data['headers']['x-timestamp'])
+    print "fffffff: %s" % async_dict
+
+if __name__ == '__main__':
+    parser = OptionParser(usage='''
+Usage: async-tool [options] device-name [device-name]
+Will look through a swift object-server's async-pendings and tell you about them.''')
+
+    parser.add_option('-d', '--device-path', dest='device_path',
+        default='/srv/node/',
+        help='Path to directory container swift devices (default: /srv/node/)')
+
+    args = sys.argv[1:]
+    if not args:
+        args.append('-h')
+    options, args = parser.parse_args(args)
+
+    if not args:
+        parser.print_help()
+        exit()
+    for dev in args:
+        look_at_asyncs(dev, options.device_path)
+
+
