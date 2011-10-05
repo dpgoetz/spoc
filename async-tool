@@ -9,6 +9,8 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
     async_path = os.path.join(node_path, device_name, 'async_pending')
     acc_dict = {}
     cont_dict = {}
+    total = 0
+
     for async_suffix in os.listdir(async_path):
         for async_file in os.listdir(os.path.join(async_path, async_suffix)):
             try:
@@ -32,6 +34,7 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
                 cont_dict[(acc, cont)]['num_asyncs'] += 1
                 cont_dict[(acc, cont)]['async_times'].append(
                     float(file_data['headers']['x-timestamp']))
+                total += 1
             except KeyError, e:
                 print "KeyError: %s has invalid data. %s" % (async_file, e)
                 continue
@@ -48,20 +51,22 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
     for name, result in [('Accounts', acc_results),
                          ('Account, Containers', cont_results)]:
 
-        print '{0:^60}'.format('Top %s %s w/ asyncs' % (num_results, name)), \
-              '{0:^6}'.format('#'), \
-              '{0:^6}'.format('tDiff'), \
-              '{0:^6}'.format('Freq')
+        print '{0:^50}'.format('Top %s %s w/ asyncs' % (num_results, name)), \
+              '{0:^5}'.format('#'), \
+              '{0:^5}'.format('tDiff'), \
+              '{0:^5}'.format('Freq'), \
+              '{0:^5}'.format('Perc')
         print '-' * 80
 
         for i in range(min(num_results, len(result))):
             min_time = min(result[i][1]['async_times'])
             max_time = max(result[i][1]['async_times'])
             num = int(result[i][1]['num_asyncs'])
-            print '{0:^60}'.format(result[i][0]), \
-                  '{0:^6}'.format(num), \
-                  '{0:^6}'.format('%.2f' % (max_time - min_time)), \
-                  '{0:^6}'.format('%.2f' % ((max_time - min_time) / num))
+            print '{0:^50}'.format(result[i][0]), \
+                  '{0:^5}'.format(num), \
+                  '{0:^5}'.format('%.2f' % (max_time - min_time)), \
+                  '{0:^5}'.format('%.2f' % ((max_time - min_time) / num)), \
+                  '{0:^5}'.format('%d%%' % int(float(num)/total * 100))
 
         print
         print
