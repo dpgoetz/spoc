@@ -78,7 +78,7 @@ Will look through a swift object-server's async-pendings and tell you about them
 
     parser.add_option('-d', '--device-path', dest='device_path',
         default='/srv/node/',
-        help='Path to directory container swift devices (default: /srv/node/)')
+        help='Path to directory containing swift devices (def: /srv/node/)')
     parser.add_option('-n', '--num_results', dest='num_results',
         default='5',
         help='Number of results to return defaults to 5')
