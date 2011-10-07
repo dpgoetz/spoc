@@ -53,19 +53,26 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
 
         print '{0:^50}'.format('Top %s %s w/ asyncs' % (num_results, name)), \
               '{0:^5}'.format('#'), \
-              '{0:^5}'.format('tDiff'), \
-              '{0:^5}'.format('Freq'), \
+              '{0:^10}'.format('tDiff'), \
               '{0:^5}'.format('Perc')
         print '-' * 80
 
         for i in range(min(num_results, len(result))):
             min_time = min(result[i][1]['async_times'])
             max_time = max(result[i][1]['async_times'])
+            tdiff = max_time - min_time
+            if tdiff > 60 * 60 * 24:
+                tdiff_mess = "%.1f days" % (tdiff / (60.0 * 60 * 24))
+            elif tdiff > 60 * 60:
+                tdiff_mess = "%.1f hrs" % (tdiff / (60.0 * 60))
+            else:
+                tdiff_mess = "%d scs" % tdiff
+
+                
             num = int(result[i][1]['num_asyncs'])
             print '{0:^50}'.format(result[i][0]), \
                   '{0:^5}'.format(num), \
-                  '{0:^5}'.format('%.2f' % (max_time - min_time)), \
-                  '{0:^5}'.format('%.2f' % ((max_time - min_time) / num)), \
+                  '{0:^10}'.format(tdiff_mess), \
                   '{0:^5}'.format('%d%%' % int(float(num)/total * 100))
 
         print
