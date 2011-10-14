@@ -5,9 +5,8 @@ from optparse import OptionParser
 import cPickle as pickle
 
 
-def look_at_asyncs(acc_dict, cont_dict, device_name,
-                   node_path='/srv/node/'):
-    async_path = os.path.join(node_path, device_name, 'async_pending')
+def look_at_asyncs(acc_dict, cont_dict, device_name):
+    async_path = os.path.join(device_name, 'async_pending')
     total = 0
 
     for async_suffix in os.listdir(async_path):
@@ -77,7 +76,6 @@ def print_results(acc_dict, cont_dict, num_results=5):
             else:
                 tdiff_mess = "%d scs" % tdiff
 
-                
             num = int(result[i][1]['num_asyncs'])
             print '{0:^50}'.format(result[i][0]), \
                   '{0:^5}'.format(num), \
@@ -90,12 +88,9 @@ def print_results(acc_dict, cont_dict, num_results=5):
 
 if __name__ == '__main__':
     parser = OptionParser(usage='''
-Usage: async-tool [options] device-name [device-name]
+Usage: async-tool [options] [<device-name-pattern>...]
 Will look through a swift object-server's async-pendings and tell you about them.''')
 
-    parser.add_option('-d', '--device-path', dest='device_path',
-        default='/srv/node/',
-        help='Path to directory containing swift devices (def: /srv/node/)')
     parser.add_option('-n', '--num_results', dest='num_results',
         default='5',
         help='Number of results to return defaults to 5')
@@ -111,6 +106,6 @@ Will look through a swift object-server's async-pendings and tell you about them
     acc_dict = {}
     cont_dict = {}
     for dev in args:
-        look_at_asyncs(acc_dict, cont_dict, dev, options.device_path)
+        look_at_asyncs(acc_dict, cont_dict, dev)
     print_results(acc_dict, cont_dict, int(options.num_results))
 
