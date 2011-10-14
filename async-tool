@@ -21,16 +21,18 @@ def look_at_asyncs(acc_dict, cont_dict, device_name,
                     print "Error: %s has invalid data" % async_file
                     continue
                 if not acc in acc_dict:
-                    acc_dict[acc] = {'num_asyncs': 0,
+                    acc_dict[acc] = {'num_asyncs': 0, 'files': [],
                                      'async_times': []}
                 if (acc, cont) not in cont_dict:
-                    cont_dict[(acc, cont)] = {'num_asyncs': 0,
+                    cont_dict[(acc, cont)] = {'num_asyncs': 0, 'files': [],
                                               'async_times': []}
                 acc_dict[acc]['num_asyncs'] += 1
+                acc_dict[acc]['files'].append(async_file)
                 acc_dict[acc]['async_times'].append(
                     float(file_data['headers']['x-timestamp']))
 
                 cont_dict[(acc, cont)]['num_asyncs'] += 1
+                cont_dict[(acc, cont)]['files'].append(async_file)
                 cont_dict[(acc, cont)]['async_times'].append(
                     float(file_data['headers']['x-timestamp']))
                 total += 1
@@ -60,7 +62,8 @@ def print_results(acc_dict, cont_dict, num_results=5):
         print '{0:^50}'.format('Top %s %s w/ asyncs' % (num_results, name)), \
               '{0:^5}'.format('#'), \
               '{0:^10}'.format('tDiff'), \
-              '{0:^5}'.format('Perc')
+              '{0:^5}'.format('Perc'), \
+              '{0:^15}'.format('Ex')
         print '-' * 80
 
         for i in range(min(num_results, len(result))):
@@ -79,7 +82,8 @@ def print_results(acc_dict, cont_dict, num_results=5):
             print '{0:^50}'.format(result[i][0]), \
                   '{0:^5}'.format(num), \
                   '{0:^10}'.format(tdiff_mess), \
-                  '{0:^5}'.format('%d%%' % int(float(num)/total * 100))
+                  '{0:^5}'.format('%d%%' % int(float(num)/total * 100)), \
+                  '{0:^15}'.format(result[i][1]['files'][0])
 
         print
         print
