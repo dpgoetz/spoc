@@ -5,10 +5,9 @@ from optparse import OptionParser
 import cPickle as pickle
 
 
-def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
+def look_at_asyncs(acc_dict, cont_dict, device_name,
+                   node_path='/srv/node/'):
     async_path = os.path.join(node_path, device_name, 'async_pending')
-    acc_dict = {}
-    cont_dict = {}
     total = 0
 
     for async_suffix in os.listdir(async_path):
@@ -39,6 +38,12 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
                 print "KeyError: %s has invalid data. %s" % (async_file, e)
                 continue
 
+
+def print_results(acc_dict, cont_dict, num_results=5):
+    total = 0
+    for res_dict in acc_dict.values():
+        total += res_dict['num_asyncs']
+
     acc_results = sorted(acc_dict.items(),
                          cmp=lambda a, b: cmp(b[1]['num_asyncs'],
                                               a[1]['num_asyncs']))
@@ -46,7 +51,8 @@ def look_at_asyncs(device_name, node_path='/srv/node/', num_results=5):
                           cmp=lambda a, b: cmp(b[1]['num_asyncs'],
                                                a[1]['num_asyncs']))
 
-    print "\nRESULTS FOR %s" % device_name
+#    print "\nRESULTS FOR %s" % device_name
+    print "Async Results"
 
     for name, result in [('Accounts', acc_results),
                          ('Account, Containers', cont_results)]:
@@ -98,5 +104,9 @@ Will look through a swift object-server's async-pendings and tell you about them
     if not args:
         parser.print_help()
         exit()
+    acc_dict = {}
+    cont_dict = {}
     for dev in args:
-        look_at_asyncs(dev, options.device_path, int(options.num_results))
+        look_at_asyncs(acc_dict, cont_dict, dev, options.device_path)
+    print_results(acc_dict, cont_dict, int(options.num_results))
+
