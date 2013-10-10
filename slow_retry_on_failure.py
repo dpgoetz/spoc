@@ -32,7 +32,8 @@ timeout_dict = {}
 all_start = time.time()
 
 if len(sys.argv) < 4:
-    print 'failure_rep https://storage_url/v1/acc_hash auth_token num_obj'
+    print sys.argv[0] + \
+        ' https://storage_url/v1/acc_hash token num_obj [o_ring]'
     sys.exit()
 
 num_objs = int(sys.argv[3])
@@ -62,11 +63,6 @@ def do_stuff():
         if sleep_time:
             print 'sleeping for %s' % put_path
             eventlet.sleep(sleep_time)
-        if (time.time() - all_start) > 1 and \
-                int(time.time() - all_start) % 10 == 0:
-            print 'have %s %s objs @ %.2f r/s' % (method,
-                num_objs - len(retry_queue),
-                (num_objs - len(retry_queue)) / (time.time() - all_start))
         body = ''
         if method == 'PUT' and len(put_path.split('/')) == 5:
             body = '1' * obj_size
@@ -122,6 +118,11 @@ def do_stuff():
     while True:
         while obj_queue:
             put_path, sleep_time = obj_queue.pop(0)
+            if (time.time() - start) > 1 and \
+                    int(time.time() - start) % 10 == 0:
+                print 'have %s %s objs @ %.2f r/s' % ('PUT',
+                    num_objs - len(obj_queue),
+                    (num_objs - len(obj_queue)) / (time.time() - start))
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue)
         pool.waitall()
 
@@ -138,6 +139,11 @@ def do_stuff():
     while True:
         while obj_queue:
             put_path, sleep_time = obj_queue.pop(0)
+            if (time.time() - start) > 1 and \
+                    int(time.time() - start) % 10 == 0:
+                print 'have %s %s objs @ %.2f r/s' % ('DELETED',
+                    num_objs - len(obj_queue),
+                    (num_objs - len(obj_queue)) / (time.time() - start))
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue, 'DELETE')
         pool.waitall()
 
