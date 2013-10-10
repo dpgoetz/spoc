@@ -115,14 +115,17 @@ def do_stuff():
         obj_queue.append(obj_tup)
 
     start = time.time()
+    already_printed = set()
     while True:
         while obj_queue:
             put_path, sleep_time = obj_queue.pop(0)
-            if (time.time() - start) > 1 and \
-                    int(time.time() - start) % 10 == 0:
+            time_elapsed = int(time.time() - start)
+            if time_elapsed > 1 and time_elapsed % 10 == 0 and \
+                    time_elapsed not in already_printed:
                 print 'have %s %s objs @ %.2f r/s' % ('PUT',
                     num_objs - len(obj_queue),
                     (num_objs - len(obj_queue)) / (time.time() - start))
+                already_printed.add(time_elapsed)
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue)
         pool.waitall()
 
@@ -136,14 +139,16 @@ def do_stuff():
         obj_queue.append(obj_tup)
 
     start = time.time()
+    already_printed = set()
     while True:
         while obj_queue:
             put_path, sleep_time = obj_queue.pop(0)
-            if (time.time() - start) > 1 and \
-                    int(time.time() - start) % 10 == 0:
+            time_elapsed = int(time.time() - start)
+            if time_elapsed > 1 and time_elapsed % 10 == 0:
                 print 'have %s %s objs @ %.2f r/s' % ('DELETED',
                     num_objs - len(obj_queue),
                     (num_objs - len(obj_queue)) / (time.time() - start))
+                already_printed.add(time_elapsed)
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue, 'DELETE')
         pool.waitall()
 
