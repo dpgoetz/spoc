@@ -144,7 +144,8 @@ def do_stuff():
         while obj_queue:
             put_path, sleep_time = obj_queue.pop(0)
             time_elapsed = int(time.time() - start)
-            if time_elapsed > 1 and time_elapsed % 10 == 0:
+            if time_elapsed > 1 and time_elapsed % 10 == 0 and \
+                    time_elapsed not in already_printed:
                 print 'have %s %s objs @ %.2f r/s' % ('DELETED',
                     num_objs - len(obj_queue),
                     (num_objs - len(obj_queue)) / (time.time() - start))
