@@ -82,6 +82,9 @@ def do_stuff():
                     obj_queue = []
                     return
 
+                if resp.status == 404 and method == 'DELETE':
+                    return
+
                 if resp.status // 100 != 2:
                     if body == '' or retry_queue is None:
                         print \
