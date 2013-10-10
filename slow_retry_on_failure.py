@@ -20,21 +20,31 @@ class TimeoutResponse(Exception):
         self.path = path
 
 
-num_containers = 50
-num_objs = 10000
+num_containers = 20
 obj_size = 1 # keep low as i didn't write it to chunk the data or anything
 pool_size = 50
-timeout = 60 # low timeout to cause issue to happen more
-put_wait = 30 # num seconds to wait after a timeout
+timeout = 15 # low timeout to cause issue to happen more
+put_wait = 20 # num seconds to wait after a timeout
 too_many_failures = 5
 cont_prefix = 'asdfasdfasdfasdf' # unique enough string for parsing logs
 
 timeout_dict = {}
+all_start = time.time()
 
-if len(sys.argv) < 3:
-    print 'failure_rep https://storage_url/v1/acc_hash auth_token'
+if len(sys.argv) < 4:
+    print 'failure_rep https://storage_url/v1/acc_hash auth_token num_obj'
     sys.exit()
 
+num_objs = int(sys.argv[3])
+
+oring = None
+
+if len(sys.argv) == 5:
+    obj_ring_path = sys.argv[4]
+    from swift.common.ring import Ring
+    oring = Ring(obj_ring_path)
+
+failures = []
 
 def do_stuff():
     storage_url = sys.argv[1]
@@ -46,12 +56,17 @@ def do_stuff():
         connector = httplib.HTTPSConnection
 
     pool = eventlet.greenpool.GreenPool(pool_size)
-    obj_queue = eventlet.Queue()
+    obj_queue = []
 
     def make_req(put_path, sleep_time=0, retry_queue=None, method='PUT'):
         if sleep_time:
             print 'sleeping for %s' % put_path
             eventlet.sleep(sleep_time)
+        if (time.time() - all_start) > 1 and \
+                int(time.time() - all_start) % 10 == 0:
+            print 'have %s %s objs @ %.2f r/s' % (method,
+                num_objs - len(retry_queue),
+                (num_objs - len(retry_queue)) / (time.time() - all_start))
         body = ''
         if method == 'PUT' and len(put_path.split('/')) == 5:
             body = '1' * obj_size
@@ -62,18 +77,29 @@ def do_stuff():
                               headers={'X-Auth-Token': token})
                 resp = conn.getresponse()
 
-                if resp.status // 100 != 2:
-                    raise BadResponse('%s: %s: %s' % (resp.status, put_path, resp.getheaders()))
-        except Timeout:
-            if body == '' or retry_queue is None:
-                print 'timed out on non-obj thing: %s' % put_path
-                raise
+                if resp.status == 401:
+                    print '401ed'
+                    obj_queue = []
+                    return
 
-            retry_queue.put((put_path, put_wait))
+                if resp.status // 100 != 2:
+                    if body == '' or retry_queue is None:
+                        print \
+                            'failed on a container put, give up: %s: %s: %s' \
+                            % (resp.status, put_path, resp.getheaders())
+                        obj_queue = []
+                        return
+
+        except (Exception, Timeout):
+            if body == '' or retry_queue is None:
+                print 'timed out on non-obj %s thing: %s' % (method, put_path)
+                return
+            failures.append(put_path)
+            insertion_point = int(len(retry_queue) * .20)
+            retry_queue.insert(insertion_point, (put_path, put_wait))
             timeout_dict[put_path] = timeout_dict.get(put_path, 0) + 1
             if timeout_dict[put_path] > too_many_failures:
-                raise Exception(
-                    '%s failed %s times' % (put_path, timeout_dict[put_path]))
+                print 'total fail %s: %s' % (method, put_path)
 
     conts = ['%s/%s%s' % (parsed_url.path, cont_prefix, uuid.uuid4().hex)
              for i in xrange(num_containers)]
@@ -87,32 +113,32 @@ def do_stuff():
     objs = [('%s/%s' % (random.choice(conts), uuid.uuid4().hex), 0)
             for i in xrange(num_objs)]
     for obj_tup in objs:
-        obj_queue.put(obj_tup)
+        obj_queue.append(obj_tup)
 
     start = time.time()
     while True:
-        while not obj_queue.empty():
-            put_path, sleep_time = obj_queue.get()
+        while obj_queue:
+            put_path, sleep_time = obj_queue.pop(0)
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue)
         pool.waitall()
 
-        if obj_queue.empty():
+        if not obj_queue:
             break
 
     print 'PUT %s objs @ %.2f r/s' % (num_objs,
                                       num_objs / (time.time()-start))
 
     for obj_tup in objs:
-        obj_queue.put(obj_tup)
+        obj_queue.append(obj_tup)
 
     start = time.time()
     while True:
-        while not obj_queue.empty():
-            put_path, sleep_time = obj_queue.get()
+        while obj_queue:
+            put_path, sleep_time = obj_queue.pop(0)
             pool.spawn_n(make_req, put_path, sleep_time, obj_queue, 'DELETE')
         pool.waitall()
 
-        if obj_queue.empty():
+        if not obj_queue:
             break
 
     print 'DELETE %s objs @ %.2f r/s' % (num_objs,
@@ -124,6 +150,24 @@ def do_stuff():
     pool.waitall()
     print 'DELETE %s conts @ %.2f r/s' % (num_containers,
                                           num_containers / (time.time()-start))
+
+    print 'there are %s fails' % len(failures)
+    if oring:
+        bad_ips = {}
+        for obj_path in failures:
+            try:
+                junk, vrs, acc, cont, obj = obj_path.split('/')
+            except Exception:
+                continue
+            part, nodes = oring.get_nodes(acc, cont, obj)
+            for node in nodes:
+                bad_ips[node['ip']] = bad_ips.get(node['ip'], 0) + 1
+
+        ips_in_order = bad_ips.keys()
+        ips_in_order.sort(cmp=lambda l,r: cmp(bad_ips[l], bad_ips[r]))
+        for ip in ips_in_order:
+            print 'object_server: %s had %s timeouts' % (ip, bad_ips[ip])
+
 
 if __name__ == '__main__':
     do_stuff()
