@@ -20,13 +20,14 @@ class TimeoutResponse(Exception):
         self.path = path
 
 
-num_containers = 10
-num_objs = 500
+num_containers = 50
+num_objs = 10000
 obj_size = 1 # keep low as i didn't write it to chunk the data or anything
 pool_size = 50
-timeout = 10 # low timeout to cause issue to happen more
-put_wait = 60 # num seconds to wait after a timeout
+timeout = 60 # low timeout to cause issue to happen more
+put_wait = 30 # num seconds to wait after a timeout
 too_many_failures = 5
+cont_prefix = 'asdfasdfasdfasdf' # unique enough string for parsing logs
 
 timeout_dict = {}
 
@@ -47,25 +48,25 @@ def do_stuff():
     pool = eventlet.greenpool.GreenPool(pool_size)
     obj_queue = eventlet.Queue()
 
-    def put_thing(put_path, sleep_time=0, retry_queue=None):
-        print 'lalala: %s' % (put_path,)
+    def make_req(put_path, sleep_time=0, retry_queue=None, method='PUT'):
         if sleep_time:
             print 'sleeping for %s' % put_path
             eventlet.sleep(sleep_time)
         body = ''
-        if len(put_path.split('/')) == 5:
+        if method == 'PUT' and len(put_path.split('/')) == 5:
             body = '1' * obj_size
         try:
             with Timeout(timeout):
                 conn = connector(parsed_url.netloc)
-                conn.request('PUT', put_path, body=body,
+                conn.request(method, put_path, body=body,
                               headers={'X-Auth-Token': token})
                 resp = conn.getresponse()
 
                 if resp.status // 100 != 2:
-                    raise BadResponse('%s: %s' % (resp.status, put_path))
+                    raise BadResponse('%s: %s: %s' % (resp.status, put_path, resp.getheaders()))
         except Timeout:
             if body == '' or retry_queue is None:
+                print 'timed out on non-obj thing: %s' % put_path
                 raise
 
             retry_queue.put((put_path, put_wait))
@@ -74,21 +75,25 @@ def do_stuff():
                 raise Exception(
                     '%s failed %s times' % (put_path, timeout_dict[put_path]))
 
-    conts = ['%s/%s' % (parsed_url.path, uuid.uuid4().hex)
+    conts = ['%s/%s%s' % (parsed_url.path, cont_prefix, uuid.uuid4().hex)
              for i in xrange(num_containers)]
     start = time.time()
-    list(pool.imap(put_thing, conts))
+    for cont in conts:
+        pool.spawn_n(make_req, cont)
+    pool.waitall()
     print 'PUT %s conts @ %.2f r/s' % (num_containers,
                                        num_containers / (time.time()-start))
 
-    for i in xrange(num_objs):
-        obj_queue.put(('%s/%s' % (random.choice(conts), uuid.uuid4().hex), 0))
+    objs = [('%s/%s' % (random.choice(conts), uuid.uuid4().hex), 0)
+            for i in xrange(num_objs)]
+    for obj_tup in objs:
+        obj_queue.put(obj_tup)
 
     start = time.time()
     while True:
         while not obj_queue.empty():
             put_path, sleep_time = obj_queue.get()
-            pool.spawn_n(put_thing, put_path, sleep_time, obj_queue)
+            pool.spawn_n(make_req, put_path, sleep_time, obj_queue)
         pool.waitall()
 
         if obj_queue.empty():
@@ -96,6 +101,29 @@ def do_stuff():
 
     print 'PUT %s objs @ %.2f r/s' % (num_objs,
                                       num_objs / (time.time()-start))
+
+    for obj_tup in objs:
+        obj_queue.put(obj_tup)
+
+    start = time.time()
+    while True:
+        while not obj_queue.empty():
+            put_path, sleep_time = obj_queue.get()
+            pool.spawn_n(make_req, put_path, sleep_time, obj_queue, 'DELETE')
+        pool.waitall()
+
+        if obj_queue.empty():
+            break
+
+    print 'DELETE %s objs @ %.2f r/s' % (num_objs,
+                                         num_objs / (time.time()-start))
+
+    start = time.time()
+    for cont in conts:
+        pool.spawn_n(make_req, cont, 0, None, 'DELETE')
+    pool.waitall()
+    print 'DELETE %s conts @ %.2f r/s' % (num_containers,
+                                          num_containers / (time.time()-start))
 
 if __name__ == '__main__':
     do_stuff()
