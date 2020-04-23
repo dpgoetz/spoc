@@ -1,0 +1,85 @@
+{
+  "vim.easymotion": true,
+  "vim.sneak": true,
+  "vim.incsearch": true,
+  "vim.useSystemClipboard": true,
+  "vim.useCtrlKeys": true,
+  "vim.hlsearch": true,
+  "vim.insertModeKeyBindings": [
+    {
+      "before": [
+        "j",
+        "j"
+      ],
+      "after": [
+        "<Esc>"
+      ]
+    }
+  ],
+  "vim.normalModeKeyBindingsNonRecursive": [
+    {
+      "before": [
+        "<leader>",
+        "d"
+      ],
+      "after": [
+        "d",
+        "d"
+      ]
+    },
+    {
+      "before": [
+        "u"
+      ],
+      "after": [],
+      "commands": [
+        {
+          "command": "undo",
+          "args": []
+        }
+      ]
+    },
+    {
+      "before": [
+        "<C-n>"
+      ],
+      "commands": [
+        ":nohl"
+      ]
+    }
+  ],
+  "vim.leader": "<space>",
+  "vim.handleKeys": {
+    "<C-a>": false,
+    "<C-f>": true
+  },
+  "search.exclude": {
+    "*venv*": true
+  },
+  "workbench.colorTheme": "Material Theme Palenight High Contrast",
+  "editor.fontSize": 15,
+  "editor.renderWhitespace": "boundary",
+  "files.trimTrailingWhitespace": true,
+  "terminal.integrated.fontSize": 14,
+  "editor.fontWeight": "bold",
+  "editor.tabCompletion": true,
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.enablePreviewFromQuickOpen": false,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  "editor.parameterHints.enabled": false,
+  "html.suggest.html5": true,
+  "zenMode.hideLineNumbers": false,
+  "go.autocompleteUnimportedPackages": true,
+  "files.insertFinalNewline": true,
+  "go.useCodeSnippetsOnFunctionSuggest": true,
+  "go.useCodeSnippetsOnFunctionSuggestWithoutType": true,
+  "zenMode.hideTabs": false,
+  "zenMode.hideStatusBar": false,
+  "terminal.integrated.copyOnSelection": true,
+  "window.zoomLevel": -1,
+  "vim.commandLineModeKeyBindings": [],
+}
